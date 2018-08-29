@@ -437,9 +437,8 @@ public class ActivityHelper extends AbstractResource {
 		return jsonObject;
 	}
 
-	public static  void sendNotification( String notificationType,
-			String userType,String principal)
-					throws WTException
+	public static  void sendNotification( String notificationType,String principal)
+			throws WTException
 	{
 		// No need to provide user type. Only name is needed
 		DirectoryContextProvider localDirectoryContextProvider = OrganizationServicesHelper.manager
@@ -500,8 +499,8 @@ public class ActivityHelper extends AbstractResource {
 		}
 		return users;
 	}
-	
-	
+
+
 	private static void getAffectedObjects(wt.workflow.work.WorkItem workitem,Element element){
 		//
 		try {
