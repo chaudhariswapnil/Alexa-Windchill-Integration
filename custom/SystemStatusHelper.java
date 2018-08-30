@@ -55,6 +55,8 @@ import java.util.TreeMap;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
+import org.joda.time.DateTime;
+import org.joda.time.Period;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -287,7 +289,7 @@ public class SystemStatusHelper extends AbstractResource {
 
 
 
-	public static org.json.JSONObject getCurrentSystemStatus() throws UnsupportedEncodingException{
+	public static org.json.JSONObject getCurrentSystemStatus() throws UnsupportedEncodingException, JSONException{
 		// collect data for WindchillDS
 		org.json.JSONObject jsonSystemObject = new org.json.JSONObject();
 		Map<ObjectName,AttributeList>  windchillDSResults[] = null;
@@ -443,7 +445,7 @@ public class SystemStatusHelper extends AbstractResource {
 
 		// get siteStatusData
 		final TabularData  siteStatusData = ( ( vaultSiteStatusInfo != null ) ? (TabularData) vaultSiteStatusInfo.get( "siteStatusData" ) : null );
-
+/*
 		final double  msPercTimeInGCLimit = (Double) thisMsAttrMap.get( "PercentTimeSpentInGCThreshold" );
 		final double  msPercTimeInGCRecent = (Double) thisMsAttrMap.get( "RecentPercentTimeSpentInGC" );
 		final double  msPercTimeInGCOverall = (Double) thisMsAttrMap.get( "OverallPercentTimeSpentInGC" );
@@ -501,13 +503,13 @@ public class SystemStatusHelper extends AbstractResource {
 			LOGGER.error("Null pointer",e);
 		}catch(Exception e){
 			LOGGER.error("Null pointer",e);
-		}
+		}*/
 
 		CompositeData  recentMcData = (CompositeData) thisMsAttrMap.get( "RecentStatistics" );
 		final CompositeData  baselineMcData = (CompositeData) thisMsAttrMap.get( "BaselineStatistics" );
 		if ( recentMcData == null )
 			recentMcData = baselineMcData;
-
+/*
 		final long  completedContextsRecent = (Long) recentMcData.get( "completedContexts" );
 		final long  completedContextsBaseline = (Long) baselineMcData.get( "completedContexts" );
 
@@ -515,14 +517,16 @@ public class SystemStatusHelper extends AbstractResource {
 		final int  maxContextsBaseline = (Integer) baselineMcData.get( "activeContextsMax" );
 		final double  avgContextsRecent = (Double) recentMcData.get( "activeContextsAverage" );
 		final double  avgContextsBaseline = (Double) baselineMcData.get( "activeContextsAverage" );
-		final Double  msSystemLoadAverage = (Double) thisMsAttrMap.get( "SystemLoadAverage" );
+		final Double  msSystemLoadAverage = (Double) thisMsAttrMap.get( "SystemLoadAverage" );*/
 
-
+		org.json.JSONObject msJson = new org.json.JSONObject();
+		org.json.JSONObject bgmsJson = new org.json.JSONObject();
+		
 		for ( Map.Entry<String,Map<String,Object>> smToAttrsEntry : smToAttrMap.entrySet() )
 		{
 			final String  serverManagerName = smToAttrsEntry.getKey();
 			final String  encodedServerManagerName = URLEncoder.encode( serverManagerName, "UTF-8" );
-			final boolean  isDefaultSm = ( ( defaultSmJvmName != null ) && defaultSmJvmName.equals( serverManagerName ) );
+		//	final boolean  isDefaultSm = ( ( defaultSmJvmName != null ) && defaultSmJvmName.equals( serverManagerName ) );
 			final Map<String,Object>  smAttrMap = smToAttrsEntry.getValue();
 			final Map<String,Map<String,Object>>  msToAttrMap = smToMsToAttrMap.get( serverManagerName );
 			final Map<String,Throwable>  msToExceptionMap = smToMsToExceptionMap.get( serverManagerName );
@@ -532,13 +536,33 @@ public class SystemStatusHelper extends AbstractResource {
 			{
 				final String  methodServerName = msToAttrMapEntry.getKey();
 				final Map<String,Object>  msAttrs = msToAttrMapEntry.getValue();
+				
+				DateTime startTime, endTime;
+				startTime = new DateTime((long) msAttrs.get("StartTime"));
+				endTime = new DateTime(System.currentTimeMillis());
+				Period p = new Period(startTime, endTime);
+				final String timestamp = p.getDays()+"|"+p.getHours()+"|"+p.getMinutes()+"|"+p.getMillis();
+				
+				final boolean  deadlocked = ( msAttrs.get( "Deadlocked" ) != null );
+				if(methodServerName.startsWith("BackgroundMethodServer")){
+					int BGMS_Count = bgmsJson.optInt("BackgroundMethodServer");
+					bgmsJson.put("BackgroundMethodServer", 1+BGMS_Count);
+					bgmsJson.put("uptime", timestamp);
+					bgmsJson.put("deadlocked", deadlocked);
+				}else if(methodServerName.startsWith("MethodServer")){
+					int MS_Count = msJson.optInt("MethodServer");
+					msJson.put("MethodServer", 1+MS_Count);
+					msJson.put("uptime", timestamp);
+					msJson.put("deadlocked", deadlocked);
+				}
+				
 				final String  msChartQueryString = "jvmId=" + URLEncoder.encode( (String) msAttrs.get( "Name" ), "UTF-8" ) +
 						"&amp;jvmStartTime=" + msAttrs.get( "StartTime" ) + "&amp;msName=" + URLEncoder.encode( methodServerName, "UTF-8" ) +
 						"&amp;smName=" + encodedServerManagerName;
 				msChartQueryStrings.put( methodServerName, msChartQueryString );
 			}
 
-			final boolean  cacheMaster = Boolean.TRUE.equals( smAttrMap.get( "CacheMaster" ) );
+		/*	final boolean  cacheMaster = Boolean.TRUE.equals( smAttrMap.get( "CacheMaster" ) );
 			final boolean  smDeadlocked = ( smAttrMap.get( "Deadlocked" ) != null );
 			final double  smPercTimeInGCLimit = (Double) smAttrMap.get( "PercentTimeSpentInGCThreshold" );
 			final double  smPercTimeInGCRecent = (Double) smAttrMap.get( "RecentPercentTimeSpentInGC" );
@@ -548,12 +572,19 @@ public class SystemStatusHelper extends AbstractResource {
 			final CompositeData  smRecentCpuData = (CompositeData) smAttrMap.get( "RecentCpuData" );
 			final double  smPercHeapLimit = (Double) smAttrMap.get( "HeapPercentUsageThreshold" ), smPercHeapUsed = (Double) smAttrMap.get( "HeapPercentUsage" );
 			final double  smPercPermLimit = (Double) smAttrMap.get( "PermGenPercentUsageThreshold" ), smPercPermUsed = (Double) smAttrMap.get( "PermGenPercentUsage" );
-			final String  smPhysMemInfo = renderSysMemInfo( smAttrMap, "FreePhysicalMemorySize", "TotalPhysicalMemorySize", decimalFormat, RB );
-			final String  smSwapMemInfo = renderSysMemInfo( smAttrMap, "FreeSwapSpaceSize", "TotalSwapSpaceSize", decimalFormat, RB );
 			final Double  smSystemLoadAverage = (Double) smAttrMap.get( "SystemLoadAverage" );
-
-			for ( Map<String,Object> msAttrs : msToAttrMap.values() ) {
-				xmlEscape( renderMillis( (Long) msAttrs.get( "Uptime" ), RB, Locale.ENGLISH ) );
+	*/		final String  smPhysMemInfo = renderSysMemInfo( smAttrMap, "FreePhysicalMemorySize", "TotalPhysicalMemorySize", decimalFormat, RB );
+			final String  smSwapMemInfo = renderSysMemInfo( smAttrMap, "FreeSwapSpaceSize", "TotalSwapSpaceSize", decimalFormat, RB );
+		
+			final boolean  smDeadlocked = ( smAttrMap.get( "Deadlocked" ) != null );
+			DateTime startTime, endTime;
+			startTime = new DateTime((long) smAttrMap.get("StartTime"));
+			endTime = new DateTime(System.currentTimeMillis());
+			Period p = new Period(startTime, endTime);
+			final String timestamp = p.getDays()+"|"+p.getHours()+"|"+p.getMinutes()+"|"+p.getMillis();
+			
+		/*	for ( Map<String,Object> msAttrs : msToAttrMap.values() ) {
+				xmlEscape( renderMillis( (Long) msAttrs.get( "Uptime" ), RB, Locale.ENGLISH ));
 			}
 
 			for ( Map<String,Object> msAttrs : msToAttrMap.values() )
@@ -561,7 +592,14 @@ public class SystemStatusHelper extends AbstractResource {
 				final boolean  msDeadlocked1 = ( msAttrs.get( "DeadlockedThreadIds" ) != null );
 				getXmlEscapedString( RB, msDeadlocked1 ? serverStatusResource.YES : serverStatusResource.NO );
 			}
-
+*/
+			jsonSystemObject.put("deadlocked", smDeadlocked);
+			jsonSystemObject.put("smPhysMemInfo", smPhysMemInfo);
+			jsonSystemObject.put("smSwapMemInfo", smSwapMemInfo);
+			jsonSystemObject.put("timestamp", timestamp);
+			jsonSystemObject.put("uptime", smSwapMemInfo);
+			jsonSystemObject.put("MSInfo", msJson);
+			jsonSystemObject.put("BGMSInfo", bgmsJson);
 
 			System.out.println(wcDsAttrMap);
 			System.out.println(siteStatusData);

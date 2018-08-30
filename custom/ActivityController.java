@@ -194,7 +194,7 @@ public class ActivityController  extends AbstractResource implements RemoteAcces
 		System.out.println("Welcome ...: "+ paramString1);
 		return Response.status(Response.Status.OK).entity("Success : "+paramString1).build();
 	}
-	
+
 	@PUT
 	@Path("/put")
 	//	@ApiOperation(position=0, response=Entity.class, responseContainer="List", value="Fetch the representation of an document object by specifying the object's OID String.")
@@ -304,59 +304,68 @@ public class ActivityController  extends AbstractResource implements RemoteAcces
 
 		return null;
 	}
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
+
 	@GET
 	@Path("/status")
 	public Response systemStatus() throws Exception{
-		JSONObject json = com.custom.ActivityHelper.getSystemStatus();
-		return Response.status(Response.Status.OK).entity(json).build();
+		JSONObject systemStatusJson = com.custom.ActivityHelper.getSystemStatus();
+		return Response.status(Response.Status.OK).entity(gson.toJson(systemStatusJson)).build();
 	} 
-	
+
 	@GET
 	@Path("/userTask")
 	public Response getuserRelatedTask(@HeaderParam("username") String userName) throws Exception{
 
-		System.out.println("Welcome ...: "+ userName);
-		JSONObject userTask = ActivityHelper.getUserRelatedTask(userName);
-		return Response.status(Response.Status.OK).entity(gson.toJson(userTask)).build();
+		JSONObject userTaskJson = ActivityHelper.getUserRelatedTask(userName);
+		
+		return Response.status(Response.Status.OK).entity(gson.toJson(userTaskJson)).build();
 	} 
-	
+
 
 	@GET
 	@Path("/search/{number}/{type}")
 	public static Response searchObject(@PathParam("number") String number,@PathParam("type") String type){
+
+		if(null==type || StringUtil.isEmpty(type))
+			type = "WTPart";
 		
-		JSONObject JSONObject = ActivityHelper.searchObject(number, type);
-	
-		return Response.status(Response.Status.OK).entity(JSONObject).build();
+		if(null==number || StringUtil.isEmpty(number))
+			return Response.status(Response.Status.BAD_REQUEST).entity("number should not be null").build();
+		
+		JSONObject searchResultJson = ActivityHelper.searchObject(number, type);
+		
+		if(searchResultJson.length()>0)
+			return Response.status(Response.Status.OK).entity(gson.toJson(searchResultJson)).build();
+
+		return Response.status(Response.Status.NOT_FOUND).entity(gson.toJson(searchResultJson)).build();
 	}
-	
-	
+
+
 	@GET
-	@Path("/notification")
-	public static Response sendNotification(@PathParam("notificationType") String notificationType,@PathParam("userType") String userType,@PathParam("principal") String principal){
-		
-		if(userType.equals("USER")){
-			// principal is userName 
-		}else{
-			// principal is Group Name
-			// read grp from site and get all participant from grp
+	@Path("/notification/{notificationType}/{principal}")
+	public static Response sendNotification(@PathParam("notificationType") String notificationType,@PathParam("principal") String principal){
+
+		try {
+			com.custom.ActivityHelper.sendNotification(notificationType, principal);
+		} catch (WTException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
+
 		return Response.status(Response.Status.OK).entity("").build();
 	}
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
 
 	public static void main(String[] args) throws WTException, PropertyVetoException, IOException, InvocationTargetException {
 
